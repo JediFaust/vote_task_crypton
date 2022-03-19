@@ -58,7 +58,7 @@ contract Voting {
         require(isCandidate[msg.sender], "You are not partipicant of the vote");
         require(!voted[msg.sender], "You already voted");
         require(isCandidate[to], "You can vote only to candidates");
-        require(msg.value >= 10000000000000000, "Cost of voting is 0.01 ETH");
+        require(msg.value == 10000000000000000, "Cost of voting is 0.01 ETH");
         
         voted[msg.sender] = true;
         votes[to] += 1;
