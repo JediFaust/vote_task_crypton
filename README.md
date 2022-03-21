@@ -5,8 +5,6 @@
 
 
 [![Language](https://img.shields.io/badge/language-solidity-orange.svg)]()
-[![Framework](https://img.shields.io/badge/framework-hardhat-yellow.svg)]()
-[![Coverage](https://img.shields.io/badge/coverage-100%-green.svg)]()
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE.md)
 
 </div>
