@@ -21,14 +21,9 @@ describe("Vote", function() {
     })
 
     it("should revert when not active", async function() {
-        await expect(voting.addCandidate(acc1.address)).to.be.revertedWith('There is no active voting')
-        await expect(voting.vote(acc1.address)).to.be.revertedWith('There is no active voting')
-        await expect(voting.endVote()).to.be.revertedWith('There is no active voting')
-
-        await expect(voting.getCandidates()).to.be.revertedWith('There is no active voting')
-        await expect(voting.getVotes(acc1.address)).to.be.revertedWith('There is no active voting')
-        await expect(voting.getWinner()).to.be.revertedWith('There is no active voting')
-        await expect(voting.getWinnerVotes()).to.be.revertedWith('There is no active voting')
+        await expect(voting.addCandidate(acc1.address)).to.be.revertedWith('Voting is inactive')
+        await expect(voting.vote(acc1.address)).to.be.revertedWith('Voting is inactive')
+        await expect(voting.endVote()).to.be.revertedWith('Voting is inactive')
     })
 
     it("should revert starting new vote when already active", async function() {
@@ -49,7 +44,8 @@ describe("Vote", function() {
     it("should not able to end vote when 3 days not pass", async function() {
         voting.startVote()
 
-        await expect(voting.connect(acc1).endVote()).to.be.revertedWith("Voting end time is not came yet")
+        await expect(voting.connect(acc1).endVote())
+            .to.be.revertedWith("End time is not came yet")
     })
 
 
@@ -75,7 +71,7 @@ describe("Vote", function() {
     it("should not be able to vote by non-candidate", async function() {
         await voting.startVote()
         await expect(voting.connect(acc1).vote(acc1.address, { value: "10000000000000000" }))
-        .to.be.revertedWith("You are not partipicant of the vote")
+            .to.be.revertedWith("You are not candidate")
     })
 
     it("should be able to vote and get votes of candidate", async function() {
@@ -128,7 +124,7 @@ describe("Vote", function() {
         await voting.addCandidate(acc1.address)
 
         await expect(voting.connect(acc1).getVotes(acc2.address))
-            .to.be.revertedWith("Address is not partipicant")
+            .to.be.revertedWith("Address is not candidate")
     })
 
 
@@ -147,7 +143,7 @@ describe("Vote", function() {
         await voting.addCandidate(acc1.address)
 
         await expect(voting.connect(acc1).vote(acc2.address, { value: "10000000000000000" }))
-            .to.be.revertedWith("You can vote only to candidates") 
+            .to.be.revertedWith("You can vote only to candidate") 
     })
 
     it("should provide more than 0.01 ETH", async function() {
@@ -204,7 +200,7 @@ describe("Vote", function() {
     it("should not be able to withdraw when voting is active", async function() {
         await voting.startVote()
 
-        await expect(voting.withdraw(acc2.address)).to.be.revertedWith("Can't withdraw when voting is active")
+        await expect(voting.withdraw(acc2.address)).to.be.revertedWith("End vote before withdraw")
     })
 
     it("withdraw should be reveted when calling on zero balance", async function() {
@@ -216,7 +212,7 @@ describe("Vote", function() {
 
         await voting.withdraw(acc2.address)
 
-        await expect(voting.withdraw(acc2.address)).to.be.revertedWith("There is no balance to withdraw")
+        await expect(voting.withdraw(acc2.address)).to.be.revertedWith("Zero balance")
     })
 
     
