@@ -2,15 +2,20 @@
 
 pragma solidity >=0.7.0 <0.9.0;
 
-contract Voting {
+contract VotingStruct {
     address owner;
     uint startDate;
     bool active; // Check if voting active
     address[] candidates;
     address payable winner;
-    mapping(address => bool) isCandidate; // Checking if candidate already in voting
-    mapping(address => uint) votes; // votes of certain candidate
-    mapping(address => bool) voted; // check if user already voted
+
+    struct Candidate {
+        bool registered;
+        uint votes;
+        bool voted;
+    }
+
+    mapping(address => Candidate) private candidate;
 
     constructor() {
         owner = msg.sender;
@@ -40,29 +45,31 @@ contract Voting {
         active = true;
     }
 
-    function turnTimeBack() public ownerOnly activeOnly { 
+    function turnTimeBack() public ownerOnly { 
         // function to turn back time
         // for testing
-        // can be deleted when deploying to production
         startDate -= 4 days;
     }
 
-    function addCandidate(address candidate) public ownerOnly activeOnly {
-        require(!isCandidate[candidate], "Candidate is already in list");
-        candidates.push(candidate);
-        isCandidate[candidate] = true;
+    function addCandidate(address _candidate) public ownerOnly activeOnly {
+        require(!candidate[_candidate].registered, "Candidate is already in list");
+        candidates.push(_candidate);
+        candidate[_candidate].registered = true;
     }
 
     function vote(address payable to) public payable activeOnly {
-        require(isCandidate[msg.sender], "You are not candidate");
-        require(!voted[msg.sender], "You already voted");
-        require(isCandidate[to], "You can vote only to candidate");
+        require(candidate[msg.sender].registered, "You are not candidate");
+        require(!candidate[msg.sender].voted, "You already voted");
+        require(candidate[to].registered, "You can vote only to candidate");
         require(msg.value == 10000000000000000, "Cost of voting is 0.01 ETH");
         
-        voted[msg.sender] = true;
-        votes[to] += 1;
-        if (votes[to] > votes[winner]) { // Due to this condition winner is the first who beats last max vote
-            winner = to; // Register new winner
+        candidate[msg.sender].voted = true;
+        candidate[to].votes += 1;
+
+        // Due to this condition winner is the first who beats last max vote
+        if (candidate[to].votes > candidate[winner].votes) { 
+            // Register new winner
+            winner = to;
         }
     }
 
@@ -71,7 +78,6 @@ contract Voting {
 
         // calculate prize as 90 percent's of current vote budget
         // and send to the winner
-
         winner.transfer(uint(address(this).balance / 10) * 9); 
 
         active = false;
@@ -83,21 +89,21 @@ contract Voting {
         to.transfer(address(this).balance);
     }
 
-    function getCandidates() public view returns(address[] memory) {
+    function getCandidates() public view activeOnly returns(address[] memory) {
         return candidates;
     }
     
-    function getVotes(address partipicant) public view returns(uint) {
-        require(isCandidate[partipicant], "Address is not candidate");
-        return votes[partipicant];
+    function getVotes(address partipicant) public view activeOnly returns(uint) {
+        require(candidate[partipicant].registered, "Address is not candidate");
+        return candidate[partipicant].votes;
     }
 
-    function getWinner() public view returns(address) {
+    function getWinner() public view activeOnly returns(address) {
         return winner;
     }
 
-    function getWinnerVotes() public view returns(uint) {
-        return votes[winner];
+    function getWinnerVotes() public view activeOnly returns(uint) {
+        return candidate[winner].votes;
     }
 
 }
