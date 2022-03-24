@@ -7,6 +7,7 @@ describe("Vote", function() {
     let acc2
     let acc3
     let voting
+    let voteID = 0;
 
     beforeEach(async function() {
         [signer, acc1, acc2, acc3] = await ethers.getSigners()
@@ -21,198 +22,152 @@ describe("Vote", function() {
     })
 
     it("should revert when not active", async function() {
-        await expect(voting.addCandidate(acc1.address)).to.be.revertedWith('Voting is inactive')
-        await expect(voting.vote(acc1.address)).to.be.revertedWith('Voting is inactive')
-        await expect(voting.endVote()).to.be.revertedWith('Voting is inactive')
-    })
-
-    it("should revert starting new vote when already active", async function() {
-        await voting.startVote()
-        await expect(voting.startVote()).to.be.revertedWith("Voting is already started")
-    })
-
-    it("should not be able to add already existed candidate", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-        await expect(voting.addCandidate(acc1.address)).to.be.revertedWith("Candidate is already in list")
+        await expect(voting.vote(voteID, acc1.address, { value: "10000000000000000" })).to.be.revertedWith('Voting is not active')
+        await expect(voting.endVoting(voteID)).to.be.revertedWith('Voting is not active')
     })
 
     it("should revert when called by non-owner", async function() {
-        await expect(voting.connect(acc1).startVote()).to.be.revertedWith("Permission denied")
+        await expect(voting.connect(acc1).startVoting([acc1.address, acc2.address])).to.be.revertedWith("Permission denied")
     })
 
     it("should not able to end vote when 3 days not pass", async function() {
-        voting.startVote()
+        await voting.startVoting([acc1.address, acc2.address])
 
-        await expect(voting.connect(acc1).endVote())
+        await expect(voting.connect(acc1).endVoting(voteID))
             .to.be.revertedWith("End time is not came yet")
     })
 
+    it("should be able to get list of voters", async function() {
+        await voting.startVoting([acc1.address, acc2.address])
 
-    it("should be able to add candidate and get list of it", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-        let candidates = await voting.getCandidates()
-        expect(candidates[0]).to.eq(acc1.address)
-    })
-
-    it("should be able to get list of candidates", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-        await voting.addCandidate(acc2.address)
-        await voting.addCandidate(acc3.address)
+        await voting.connect(acc1).vote(voteID, acc2.address, { value: "10000000000000000" })
+        await voting.connect(acc2).vote(voteID, acc2.address, { value: "10000000000000000" })
         
-        let candidates = await voting.connect(acc1).getCandidates()
-        expect(candidates[0]).to.eq(acc1.address)
-        expect(candidates[1]).to.eq(acc2.address)
-        expect(candidates[2]).to.eq(acc3.address)
+        let voters = await voting.getVoters(voteID)
+        expect(voters[0]).to.eq(acc1.address)
+        expect(voters[1]).to.eq(acc2.address)
     })
 
-    it("should not be able to vote by non-candidate", async function() {
-        await voting.startVote()
-        await expect(voting.connect(acc1).vote(acc1.address, { value: "10000000000000000" }))
-            .to.be.revertedWith("You are not candidate")
+    it("should not be able to vote to non-candidate", async function() {
+        await voting.startVoting([acc1.address, acc2.address])
+        
+        await expect(voting.connect(acc1).vote(voteID, acc3.address, { value: "10000000000000000" }))
+            .to.be.revertedWith("No such candidate on the vote")
     })
 
     it("should be able to vote and get votes of candidate", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-        await voting.addCandidate(acc2.address)
-
-        await voting.connect(acc1).vote(acc2.address, { value: "10000000000000000" })
+        await voting.startVoting([acc1.address, acc2.address])
         
-        let votes = await voting.connect(acc1).getVotes(acc2.address)
+
+        await voting.connect(acc1).vote(voteID, acc2.address, { value: "10000000000000000" })
+        
+        let votes = await voting.getVotes(voteID, acc2.address)
         expect(votes).to.eq(1)
     })
 
     it("should be able to change winner and their vote", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-        await voting.addCandidate(acc2.address)
-        await voting.addCandidate(acc3.address)
+        await voting.startVoting([acc1.address, acc2.address])
+        
 
-        await voting.connect(acc1).vote(acc2.address, { value: "10000000000000000" })
+        await voting.connect(acc1).vote(voteID, acc2.address, { value: "10000000000000000" })
 
-        let firstWinner = await voting.getWinner()
+        let firstWinner = await voting.getWinner(voteID)
         expect(firstWinner).to.eq(acc2.address)
 
-        let firstVote = await voting.getWinnerVotes()
+        let firstVote = await voting.getWinnerVotes(voteID)
         expect(firstVote).to.eq(1)
 
-        await voting.connect(acc2).vote(acc1.address, { value: "10000000000000000" })
-        await voting.connect(acc3).vote(acc1.address, { value: "10000000000000000" })
+        await voting.connect(acc2).vote(voteID, acc1.address, { value: "10000000000000000" })
+        await voting.connect(acc3).vote(voteID, acc1.address, { value: "10000000000000000" })
 
-        let secondWinner = await voting.getWinner()
+        let secondWinner = await voting.getWinner(voteID)
         expect(secondWinner).to.eq(acc1.address)
         
-        let secondVote = await voting.getWinnerVotes()
+        let secondVote = await voting.getWinnerVotes(voteID)
         expect(secondVote).to.eq(2)
     })
 
     it("should be able to get votes", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-
-        await voting.connect(acc1).vote(acc1.address, { value: "10000000000000000" })
+        await voting.startVoting([acc1.address, acc2.address])
         
-        let votes = await voting.connect(acc1).getVotes(acc1.address)
+
+        await voting.connect(acc1).vote(voteID, acc2.address, { value: "10000000000000000" })
+        
+        let votes = await voting.getVotes(voteID, acc2.address)
         expect(votes).to.eq(1)
     })
 
-    it("should not be able to get votes of non-candidate", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-
-        await expect(voting.connect(acc1).getVotes(acc2.address))
-            .to.be.revertedWith("Address is not candidate")
-    })
-
-
     it("should not be able to vote second time", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
+        await voting.startVoting([acc1.address, acc2.address])
+        
 
-        await voting.connect(acc1).vote(acc1.address, { value: "10000000000000000" })
+        await voting.connect(acc1).vote(voteID, acc1.address, { value: "10000000000000000" })
 
-        await expect(voting.connect(acc1).vote(acc1.address, { value: "10000000000000000" }))
+        await expect(voting.connect(acc1).vote(voteID, acc2.address, { value: "10000000000000000" }))
             .to.be.revertedWith("You already voted")   
     })
 
-    it("should not be able to vote to non-candidate", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
+    it("should provide exact 0.01 ETH", async function() {
+        await voting.startVoting([acc1.address, acc2.address])
+        
 
-        await expect(voting.connect(acc1).vote(acc2.address, { value: "10000000000000000" }))
-            .to.be.revertedWith("You can vote only to candidate") 
-    })
-
-    it("should provide more than 0.01 ETH", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-
-        await expect(voting.connect(acc1).vote(acc1.address, { value: "1" }))
+        await expect(voting.connect(acc1).vote(voteID, acc1.address, { value: "1" }))
             .to.be.revertedWith("Cost of voting is 0.01 ETH") 
     })
 
     it("end vote should send amount to winner", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-        await voting.connect(acc1).vote(acc1.address, { value: "10000000000000000" })
+        await voting.startVoting([acc1.address, acc2.address])
+     
+
+        await voting.connect(acc1).vote(voteID, acc2.address, { value: "10000000000000000" })
 
         let prize = BigInt(9000000000000000)
-
-        const acc1Before = await ethers.provider.getBalance(acc1.address);
-        const contractBefore = await ethers.provider.getBalance(voting.address);
-
-        await voting.turnTimeBack()
-        let tx = await voting.endVote()
-        await tx.wait()
-
-        const acc1After = await ethers.provider.getBalance(acc1.address); 
-        const contractAfter = await ethers.provider.getBalance(voting.address);
-
-        expect(acc1After.toBigInt()).to.eq(acc1Before.toBigInt() + prize)
-        expect(contractAfter.toBigInt()).to.eq(contractBefore.toBigInt() - prize)
-    })
-
-    it("withdraw should send commission to address", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-        await voting.connect(acc1).vote(acc1.address, { value: "10000000000000000" })
-        await voting.turnTimeBack()
-        await voting.endVote()
-
-        let commission = BigInt(1000000000000000)
 
         const acc2Before = await ethers.provider.getBalance(acc2.address);
         const contractBefore = await ethers.provider.getBalance(voting.address);
 
-        let tx = await voting.withdraw(acc2.address)
+        await voting.turnTimeBack(voteID)
+        let tx = await voting.endVoting(voteID)
         await tx.wait()
 
-        const acc2After = await ethers.provider.getBalance(acc2.address);
+        const acc2After = await ethers.provider.getBalance(acc2.address); 
+        const contractAfter = await ethers.provider.getBalance(voting.address);
+
+        expect(acc2After.toBigInt()).to.eq(acc2Before.toBigInt() + prize)
+        expect(contractAfter.toBigInt()).to.eq(contractBefore.toBigInt() - prize)
+    })
+
+    it("withdraw should send commission to address", async function() {
+        await voting.startVoting([acc1.address, acc2.address])
+       
+
+        await voting.connect(acc1).vote(voteID, acc2.address, { value: "10000000000000000" })
+        await voting.turnTimeBack(voteID)
+        await voting.endVoting(voteID)
+
+        let comission = BigInt(1000000000000000)
+
+        const acc3Before = await ethers.provider.getBalance(acc3.address);
+        const contractBefore = await ethers.provider.getBalance(voting.address);
+
+        let tx = await voting.withdraw(acc3.address)
+        await tx.wait()
+
+        const acc3After = await ethers.provider.getBalance(acc3.address);
         const contractAfter = await ethers.provider.getBalance(voting.address);     
 
-        expect(acc2After.toBigInt()).to.eq(acc2Before.toBigInt() + commission)
-        expect(contractAfter.toBigInt()).to.eq(contractBefore.toBigInt() - commission)
+        expect(acc3After.toBigInt()).to.eq(acc3Before.toBigInt() + comission)
+        expect(contractAfter.toBigInt()).to.eq(contractBefore.toBigInt() - comission)
     })
 
-    it("should not be able to withdraw when voting is active", async function() {
-        await voting.startVote()
+    it("withdraw should be reverted when calling on zero balance", async function() {
+        await voting.startVoting([acc1.address, acc2.address])
+        
 
-        await expect(voting.withdraw(acc2.address)).to.be.revertedWith("End vote before withdraw")
-    })
+        await voting.turnTimeBack(voteID)
+        await voting.endVoting(voteID)
 
-    it("withdraw should be reveted when calling on zero balance", async function() {
-        await voting.startVote()
-        await voting.addCandidate(acc1.address)
-        await voting.connect(acc1).vote(acc1.address, { value: "10000000000000000" })
-        await voting.turnTimeBack()
-        await voting.endVote()
-
-        await voting.withdraw(acc2.address)
-
-        await expect(voting.withdraw(acc2.address)).to.be.revertedWith("Zero balance")
+        await expect(voting.withdraw(acc1.address)).to.be.revertedWith("Zero balance")
     })
 
     
