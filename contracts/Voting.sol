@@ -88,6 +88,14 @@ contract Voting {
         votes[_voteID].startDate -= 4 days;
     }
 
+    function isActive(uint _voteID) external view ownerOnly returns(bool) {
+        return votes[_voteID].active;
+    }
+
+    function votingsCount() external view ownerOnly returns(uint) {
+        return lastVoteID;
+    }
+
     function getVoters(uint _voteID) external view ownerOnly returns(address[] memory) {
         return votes[_voteID].voters;
     }

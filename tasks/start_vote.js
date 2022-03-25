@@ -2,7 +2,10 @@ const VotingArtifact = require('../artifacts/contracts/Voting.sol/Voting.json')
 require('dotenv').config()
 
 task("start-vote", "Start voting")
-  .setAction(async () => {
+  .addParam("candidates", "Address of candidates separated by , comma")
+  .setAction(async (taskArgs) => {
+    let candidatesList = taskArgs.candidates.split(',')
+
     const [signer] = await hre.ethers.getSigners()
     const contractAddr = process.env.CONTRACT_ADDRESS
 
@@ -12,7 +15,8 @@ task("start-vote", "Start voting")
       signer
     )
 
-    const result = await voteContract.startVote()
+    const result = await voteContract.startVoting(candidatesList)
+    
     
     console.log(result)
   });

@@ -2,7 +2,8 @@ const VotingArtifact = require('../artifacts/contracts/Voting.sol/Voting.json')
 require('dotenv').config()
 
 task("winner", "Current winner")
-  .setAction(async () => {
+  .addParam("voteid", "Voting ID")
+  .setAction(async (taskArgs) => {
     const [signer] = await hre.ethers.getSigners()
     const contractAddr = process.env.CONTRACT_ADDRESS
 
@@ -12,7 +13,7 @@ task("winner", "Current winner")
       signer
     )
 
-    const result = await voteContract.getWinner()
+    const result = await voteContract.getWinner(taskArgs.voteid)
     
     console.log(result)
   });

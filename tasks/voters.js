@@ -1,8 +1,8 @@
 const VotingArtifact = require('../artifacts/contracts/Voting.sol/Voting.json')
 require('dotenv').config()
 
-task("add-candidate", "Add candidate to voting")
-  .addParam("address", "Address of candidate")
+task("voters", "List of voters")
+  .addParam("voteid", "Voting ID")
   .setAction(async (taskArgs) => {
     const [signer] = await hre.ethers.getSigners()
     const contractAddr = process.env.CONTRACT_ADDRESS
@@ -13,7 +13,7 @@ task("add-candidate", "Add candidate to voting")
       signer
     )
 
-    const result = await voteContract.addCandidate(taskArgs.address)
+    const result = await voteContract.getVoters(taskArgs.voteid)
     
     console.log(result)
   });

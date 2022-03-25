@@ -30,6 +30,26 @@ describe("Vote", function() {
         await expect(voting.connect(acc1).startVoting([acc1.address, acc2.address])).to.be.revertedWith("Permission denied")
     })
 
+    it("should be able to check active vote", async function() {
+        let state = await voting.isActive(voteID)
+        expect(state).to.eq(false)
+
+        await voting.startVoting([acc1.address, acc2.address])
+
+        state = await voting.isActive(voteID)
+
+        expect(state).to.eq(true)
+    })
+
+    it("should be able to get number of votings", async function() {
+        await voting.startVoting([acc1.address, acc2.address])
+        await voting.startVoting([acc1.address, acc2.address])
+
+        let count = await voting.votingsCount()
+
+        expect(count).to.eq(2)
+    })
+
     it("should not able to end vote when 3 days not pass", async function() {
         await voting.startVoting([acc1.address, acc2.address])
 
@@ -46,6 +66,28 @@ describe("Vote", function() {
         let voters = await voting.getVoters(voteID)
         expect(voters[0]).to.eq(acc1.address)
         expect(voters[1]).to.eq(acc2.address)
+    })
+
+    it("should be able to start another voting", async function() {
+        await voting.startVoting([acc1.address, acc2.address])
+        await voting.startVoting([acc2.address, acc3.address])
+
+        await voting.connect(acc1).vote(voteID, acc2.address, { value: "10000000000000000" })
+        await voting.connect(acc1).vote(voteID + 1, acc3.address, { value: "10000000000000000" })
+        await voting.connect(acc2).vote(voteID + 1, acc3.address, { value: "10000000000000000" })
+
+        
+        let firstVoters = await voting.getVoters(voteID)
+        let secondVoters = await voting.getVoters(voteID + 1)
+        expect(firstVoters[0]).to.eq(acc1.address)
+        expect(secondVoters[0]).to.eq(acc1.address)
+        expect(secondVoters[1]).to.eq(acc2.address)
+
+        let firstWinner = await voting.getWinner(voteID)
+        expect(firstWinner).to.eq(acc2.address)
+
+        let secondWinner = await voting.getWinner(voteID + 1)
+        expect(secondWinner).to.eq(acc3.address)
     })
 
     it("should not be able to vote to non-candidate", async function() {
